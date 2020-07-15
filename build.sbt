@@ -26,6 +26,13 @@ lazy val defaultSettings = Seq(
   addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1")
 )
 
+lazy val `console4s-core` = (project in file("console4s-core"))
+  .settings(
+    name := "console4s-core",
+    publishSettings,
+    defaultSettings
+  )
+
 lazy val console4s = (project in file("console4s"))
   .settings(
     name := "console4s",
@@ -40,18 +47,30 @@ lazy val console4s = (project in file("console4s"))
       "org.scalatest" %% "scalatest"           % scalatestVersion % Test
     )
   )
+  .dependsOn(`console4s-core`)
+  .dependsOn(`console4s-testkit` % "compile->test")
+
+lazy val `console4s-testkit` = (project in file("console4s-testkit"))
+  .settings(
+    name := "console4s-testkit",
+    defaultSettings,
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-core" % catsVersion
+    )
+  )
+  .dependsOn(`console4s-core`)
 
 lazy val examples = (project in file("examples"))
   .settings(
     name := "examples",
-    publishSettings,
+    skip in publish := true,
     defaultSettings,
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-core"   % catsVersion,
       "org.typelevel" %% "cats-effect" % catsEffectVersion
     )
   )
-  .dependsOn(console4s)
+  .dependsOn(`console4s`)
 
 lazy val root = (project in file("."))
   .settings(
@@ -59,6 +78,8 @@ lazy val root = (project in file("."))
   )
   .aggregate(
     console4s,
+    `console4s-core`,
+    `console4s-testkit`,
     examples
   )
 

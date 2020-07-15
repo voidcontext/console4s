@@ -1,27 +1,15 @@
 package com.gaborpihaj.console4s
 
 import cats.effect.{Resource, Sync}
+import com.gaborpihaj.console4s.core
 import org.jline.keymap.BindingReader
 import org.jline.terminal.TerminalBuilder
 
-trait Terminal {
-  def writer(): Terminal.Writer
-  def reader(): Terminal.Reader
-  def flush(): Unit
-  def getCursorPosition(): (Terminal.Row, Terminal.Column)
-  def getHeight(): Int
-}
-
 object Terminal {
-  type Row = Int
-  type Column = Int
-  trait Writer {
-    def write(s: String): Unit
-  }
-
-  trait Reader {
-    def readchar(): Int
-  }
+  type Row = core.Terminal.Row
+  type Column = core.Terminal.Column
+  type Writer = core.Terminal.Writer
+  type Reader = core.Terminal.Reader
 
   def apply[F[_]: Sync]: Resource[F, Terminal] =
     Resource

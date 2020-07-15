@@ -7,7 +7,7 @@ import com.gaborpihaj.console4s._
 
 object Main extends IOApp {
 
-  def run(args: List[String]): IO[ExitCode] = {
+  def run(args: List[String]): IO[ExitCode] =
     Terminal[IO].use { terminal =>
       val lineReader = LineReader[IO](terminal)
       val console = Console[IO](terminal, lineReader)
@@ -41,6 +41,5 @@ object Main extends IOApp {
         _ <- console.readLine("prompt > ", autocomplete)
       } yield ExitCode.Success
     }
-  }
 
 }

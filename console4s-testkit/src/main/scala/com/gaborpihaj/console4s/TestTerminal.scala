@@ -1,5 +1,7 @@
 package com.gaborpihaj.console4s
 
+import com.gaborpihaj.console4s.core.Terminal
+
 trait TestTerminal extends Terminal {
   def output: String
 }

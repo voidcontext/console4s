@@ -9,6 +9,7 @@ import cats.instances.list._
 import cats.instances.string._
 import com.gaborpihaj.console4s.AutoCompletionConfig.Down
 import com.gaborpihaj.console4s.AutoCompletionSource
+import com.gaborpihaj.console4s.Helpers._
 import com.gaborpihaj.console4s.TerminalHelper.TerminalState
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
