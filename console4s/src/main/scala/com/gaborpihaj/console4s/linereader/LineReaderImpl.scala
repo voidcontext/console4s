@@ -4,6 +4,8 @@ import cats.Show
 import cats.data.Chain
 import cats.effect.Sync
 import cats.instances.int._
+import cats.instances.long._
+import cats.instances.string._
 import cats.instances.unit._
 import cats.kernel.Eq
 import cats.syntax.eq._
@@ -17,7 +19,52 @@ object LineReaderImpl {
   private[console4s] def apply[F[_]: Sync](terminal: Terminal): LineReader[F] =
     new LineReader[F] {
 
+      def readLine(prompt: String): F[String] = readLine[Unit](prompt, None, noFilter).map(_._1)
+
+      def readLine[Repr: Show: Eq](
+        prompt: String,
+        autocomplete: AutoCompletionSource[Repr]
+      )(implicit cfg: AutoCompletionConfig[Repr]): F[(String, Option[Repr])] =
+        readLine(prompt, Option(cfg -> autocomplete), noFilter)
+
+      def readInt(prompt: String): F[Int] = readLine[String](prompt, None, intFilter).map(_._1.toInt)
+
+      def readBool(prompt: String): F[Boolean] =
+        readLine[String](
+          prompt,
+          None,
+          boolFilter,
+          (keySeq: Chain[Int]) =>
+            keySeq.length === 1 && keySeq.headOption.exists(
+              !boolKeys.contains(_)
+            ) // This is not going to work, as take while will drop the last, matching item
+        ).map(r => "yY".contains(r._1))
+
       type ByteSeq = Chain[Int]
+
+      implicit class LazyListOps[A](l: LazyList[A]) {
+
+        /**
+         * It's like takeWhile(f), but it includes the last element as well.
+         *
+         * @param f Predicate
+         * @return
+         */
+        def takeUntil(f: A => Boolean): LazyList[A] = {
+          val (prefix, suffix) = l.span(f)
+          prefix.concat(suffix.take(1))
+        }
+      }
+
+      private val boolKeys = List('y'.toInt, 'Y'.toInt, 'n'.toInt, 'N'.toInt)
+
+      private val noFilter: Chain[Int] => Boolean = _ => true
+      private val intFilter: Chain[Int] => Boolean = {
+        case Chain(n) if 48 <= n && n <= 57 => true
+        case _                              => false
+      }
+      private val boolFilter: Chain[Int] => Boolean =
+        keySeq => keySeq.length === 1 && keySeq.headOption.exists(boolKeys.contains(_))
 
       private val writer = terminal.writer()
       private val reader = terminal.reader()
@@ -33,19 +80,20 @@ object LineReaderImpl {
         terminal.flush()
       }
 
-      def readLine(prompt: String): F[String] = readLine[Unit](prompt, None).map(_._1)
-      def readLine[Repr: Show: Eq](
-        prompt: String,
-        autocomplete: AutoCompletionSource[Repr]
-      )(implicit cfg: AutoCompletionConfig[Repr]): F[(String, Option[Repr])] =
-        readLine(prompt, Option(cfg -> autocomplete))
+      private def isAsciiPrintable(c: Int) =
+        ((32 <= c && c <= 126) || 127 < c)
 
       private def readLine[Repr: Show: Eq](
         prompt: String,
-        autocomplete: Option[(AutoCompletionConfig[Repr], AutoCompletionSource[Repr])]
+        autocomplete: Option[(AutoCompletionConfig[Repr], AutoCompletionSource[Repr])],
+        filter: Chain[Int] => Boolean,
+        readWhile: Chain[Int] => Boolean = _ =!= Chain(13)
       ): F[(String, Option[Repr])] =
         Sync[F].delay(write(prompt)) >>
-          readInput(LineReaderState.empty, Env(terminal.getCursorPosition()._1, prompt, autocomplete))
+          readInput(
+            LineReaderState.empty,
+            Env(terminal.getCursorPosition()._1, prompt, filter, readWhile, autocomplete)
+          )
 
       private def readInput[Repr: Show: Eq](
         state: LineReaderState[Repr],
@@ -55,7 +103,11 @@ object LineReaderImpl {
           .delay(
             LazyList
               .continually(readSequence(Chain.one(reader.readchar())))
-              .takeWhile(_ =!= Chain(13))
+              .takeUntil(env.readWhile)
+              .filter { keySeq =>
+                env.filter(keySeq) || keySeq.length > 1 || (keySeq.length === 1 && keySeq.headOption
+                  .exists(c => !isAsciiPrintable(c)))
+              }
               .foldLeft(state) { (state, byteSeq) =>
                 (for {
                   out1 <- handleKeypress[Repr](byteSeq)
@@ -102,7 +154,7 @@ object LineReaderImpl {
             //   case Chain(27, 91, 72) => home()
             //   case Chain(1) => home()
 
-            case Chain(c) if ((32 <= c && c <= 126) || 127 < c) =>
+            case Chain(c) if isAsciiPrintable(c) =>
               val (_front, _back) = newState.input.splitAt(newState.column)
               newState
                 .moveColumnBy(1)

@@ -35,10 +35,15 @@ object Main extends IOApp {
       )
 
       for {
-        _ <- console.clearScreen()
-//        _ <- console.moveToLastLine()
-        _ <- console.putStrLn(TerminalControl.up())
-        _ <- console.readLine("prompt > ", autocomplete)
+        _    <- console.clearScreen()
+        _    <- console.putStrLn(TerminalControl.up())
+        str  <- console.readLine("prompt > ", autocomplete)
+        _    <- console.clearScreen()
+        int  <- console.readInt("What's you favourite number? ")
+        _    <- console.clearScreen()
+        bool <- console.readBool("Are you sure? (y/n)")
+        _    <- console.clearScreen()
+        _    <- console.putStrLn(s"Results: '$str', '$int', '$bool'")
       } yield ExitCode.Success
     }
 

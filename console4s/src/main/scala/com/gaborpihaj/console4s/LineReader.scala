@@ -11,6 +11,8 @@ trait LineReader[F[_]] {
   def readLine[Repr: Show: Eq](prompt: String, autocomplete: AutoCompletionSource[Repr])(
     implicit cfg: AutoCompletionConfig[Repr]
   ): F[(String, Option[Repr])]
+  def readInt(prompt: String): F[Int]
+  def readBool(prompt: String): F[Boolean]
 }
 
 object LineReader {

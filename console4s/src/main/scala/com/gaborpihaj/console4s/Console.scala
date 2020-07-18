@@ -14,6 +14,8 @@ trait Console[F[_]] {
   def readLine[Repr: Show: Eq](prompt: String, autocomplete: AutoCompletionSource[Repr])(
     implicit cfg: AutoCompletionConfig[Repr]
   ): F[(String, Option[Repr])]
+  def readInt(prompt: String): F[Int]
+  def readBool(prompt: String): F[Boolean]
 
   def clearScreen(): F[Unit]
   def moveToLastLine(): F[Unit]
@@ -38,6 +40,12 @@ object Console {
         implicit cfg: AutoCompletionConfig[Repr]
       ): F[(String, Option[Repr])] =
         lineReader.readLine(prompt, autocomplete)
+
+      def readInt(prompt: String): F[Int] =
+        lineReader.readInt(prompt)
+
+      def readBool(prompt: String): F[Boolean] =
+        lineReader.readBool(prompt)
 
       def clearScreen(): F[Unit] =
         write(TerminalControl.clearScreen()) *> write(TerminalControl.move(1, 1))

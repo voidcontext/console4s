@@ -44,7 +44,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
 
   implicit val debugger = Debugger.printlnDebugger(false)
 
-  "LineReader.readline" when {
+  "readline" when {
 
     "only simple characters are typed" should {
 
@@ -426,6 +426,43 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
 
         logs.toList should be(List(Some("foo"), None, Some("foobar"), None, Some("foobarbaz")))
       }
+    }
+  }
+
+  "readInt" should {
+    "return the given imput when it's an int" in {
+      val (_, lineReader, prompt) =
+        reader(strToChars("12303") ++ repeat(cursorLeft, 2) ++ List(backspace, '9'.toInt) ++ List(carriageReturn))
+
+      lineReader.readInt(prompt).unsafeRunSync() should be(12903)
+    }
+
+    "drop all characters that's not a digit" in {
+      val (_, lineReader, prompt) = reader(
+        strToChars("12asdsa30%^*&&(3sdfsdfe][p!df!@#@") ++ repeat(cursorLeft, 2) ++ List(backspace, '9'.toInt) ++ List(
+          carriageReturn
+        )
+      )
+
+      lineReader.readInt(prompt).unsafeRunSync() should be(12903)
+    }
+  }
+
+  "readBool" should {
+    "return true when 'y' is typed" in {
+      val (_, lineReader, prompt) = reader(List('y'.toInt))
+
+      lineReader.readBool(prompt).unsafeRunSync() should be(true)
+    }
+    "return false when 'n' is typed" in {
+      val (_, lineReader, prompt) = reader(List('n'.toInt))
+
+      lineReader.readBool(prompt).unsafeRunSync() should be(false)
+    }
+    "drop everything else" in {
+      val (_, lineReader, prompt) = reader(strToChars("asdl;lvkadf;vma@£$@£$3r234-03oey"))
+
+      lineReader.readBool(prompt).unsafeRunSync() should be(true)
     }
   }
 }

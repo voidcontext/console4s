@@ -49,6 +49,8 @@ private[linereader] object LineReaderState {
   case class Env[Repr](
     currentRow: Int,
     prompt: String,
+    filter: Chain[Int] => Boolean,
+    readWhile: Chain[Int] => Boolean,
     autocomplete: Option[(AutoCompletionConfig[Repr], AutoCompletionSource[Repr])]
   )
 
