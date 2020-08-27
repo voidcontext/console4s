@@ -1,6 +1,9 @@
 package com.gaborpihaj.console4s
 
 object TerminalControl {
+  val bell = '\u0007'
+  val esc = '\u001b'
+
   def up(n: Int = 1): String = csi(s"${n}A")
 
   def down(n: Int = 1) = csi(s"${n}B")
@@ -28,5 +31,5 @@ object TerminalControl {
 
   def csi(s: String): String = esc(s"[$s")
 
-  def esc(s: String): String = s"\u001b$s"
+  def esc(s: String): String = s"$esc$s"
 }

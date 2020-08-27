@@ -60,6 +60,17 @@ lazy val `console4s-testkit` = (project in file("console4s-testkit"))
   )
   .dependsOn(`console4s-core`)
 
+lazy val `console4s-iterm-extras` = (project in file("console4s-iterm-extras"))
+  .settings(
+    name := "console4s-iterm-extras",
+    defaultSettings,
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-core"   % catsVersion,
+      "org.typelevel" %% "cats-effect" % catsEffectVersion
+    )
+  )
+  .dependsOn(`console4s`)
+
 lazy val examples = (project in file("examples"))
   .settings(
     name := "examples",
@@ -70,7 +81,7 @@ lazy val examples = (project in file("examples"))
       "org.typelevel" %% "cats-effect" % catsEffectVersion
     )
   )
-  .dependsOn(`console4s`)
+  .dependsOn(`console4s`, `console4s-iterm-extras`)
 
 lazy val root = (project in file("."))
   .settings(
@@ -80,6 +91,7 @@ lazy val root = (project in file("."))
     console4s,
     `console4s-core`,
     `console4s-testkit`,
+    `console4s-iterm-extras`,
     examples
   )
 
