@@ -53,6 +53,7 @@ lazy val console4s = (project in file("console4s"))
 lazy val `console4s-testkit` = (project in file("console4s-testkit"))
   .settings(
     name := "console4s-testkit",
+    publishSettings,
     defaultSettings,
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-core" % catsVersion
@@ -63,6 +64,7 @@ lazy val `console4s-testkit` = (project in file("console4s-testkit"))
 lazy val `console4s-iterm-extras` = (project in file("console4s-iterm-extras"))
   .settings(
     name := "console4s-iterm-extras",
+    publishSettings,
     defaultSettings,
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-core"   % catsVersion,
