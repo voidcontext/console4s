@@ -8,9 +8,7 @@ trait InputReader
 
 trait LineReader[F[_]] {
   def readLine(prompt: String): F[String]
-  def readLine[Repr: Show: Eq](prompt: String, autocomplete: AutoCompletionSource[Repr])(
-    implicit cfg: AutoCompletionConfig[Repr]
-  ): F[(String, Option[Repr])]
+  def readLine[Repr: Show: Eq](prompt: String, autocompletion: AutoCompletion[Repr]): F[(String, Option[Repr])]
   def readInt(prompt: String): F[Int]
   def readBool(prompt: String): F[Boolean]
 }

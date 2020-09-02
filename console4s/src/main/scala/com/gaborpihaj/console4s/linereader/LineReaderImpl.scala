@@ -23,9 +23,9 @@ object LineReaderImpl {
 
       def readLine[Repr: Show: Eq](
         prompt: String,
-        autocomplete: AutoCompletionSource[Repr]
-      )(implicit cfg: AutoCompletionConfig[Repr]): F[(String, Option[Repr])] =
-        readLine(prompt, Option(cfg -> autocomplete), noFilter)
+        autocompletion: AutoCompletion[Repr]
+      ): F[(String, Option[Repr])] =
+        readLine(prompt, Option(autocompletion), noFilter)
 
       def readInt(prompt: String): F[Int] = readLine[String](prompt, None, intFilter).map(_._1.toInt)
 
@@ -85,14 +85,14 @@ object LineReaderImpl {
 
       private def readLine[Repr: Show: Eq](
         prompt: String,
-        autocomplete: Option[(AutoCompletionConfig[Repr], AutoCompletionSource[Repr])],
+        autocompletion: Option[AutoCompletion[Repr]],
         filter: Chain[Int] => Boolean,
         readWhile: Chain[Int] => Boolean = _ =!= Chain(13)
       ): F[(String, Option[Repr])] =
         Sync[F].delay(write(prompt)) >>
           readInput(
             LineReaderState.empty,
-            Env(terminal.getCursorPosition()._1, prompt, filter, readWhile, autocomplete)
+            Env(terminal.getCursorPosition()._1, prompt, filter, readWhile, autocompletion)
           )
 
       private def readInput[Repr: Show: Eq](
@@ -111,7 +111,7 @@ object LineReaderImpl {
               .foldLeft(state) { (state, byteSeq) =>
                 (for {
                   out1 <- handleKeypress[Repr](byteSeq)
-                  out2 <- AutoCompletion.updateCompletions[Repr]
+                  out2 <- AutoCompletionHelper.updateCompletions[Repr]
                   _    <- StateUpdate.now(write(out1 + out2))
                 } yield ())
                   .runS(env, state)
@@ -119,8 +119,8 @@ object LineReaderImpl {
               }
           )
           .flatMap { state =>
-            env.autocomplete.fold(Sync[F].pure(state.result)) { ac =>
-              if (ac._1.strict && state.result._2.isEmpty) readInput(state, env)
+            env.autocompletion.fold(Sync[F].pure(state.result)) { ac =>
+              if (ac.config.strict && state.result._2.isEmpty) readInput(state, env)
               else Sync[F].pure(state.result)
             }
           }
@@ -186,9 +186,7 @@ object LineReaderImpl {
                 column = state.selectedCompletion.fold(state.column)(_._2.length()),
                 completionResult = newState.selectedCompletion.map(_._3)
               )
-              env.autocomplete.foreach {
-                case (config, _) => config.onResultChange(s.completionResult, write)
-              }
+              env.autocompletion.foreach(_.config.onResultChange(s.completionResult, write))
               s -> (move(env.currentRow, readerStart) + clearLine() + s.input)
 
             case Chain(27, 91, 65) => // Up
@@ -209,14 +207,13 @@ object LineReaderImpl {
   ): Option[(Int, String, Repr)] =
     state.selectedCompletion.flatMap {
       case old @ (index, _, _) =>
-        env.autocomplete.map {
-          case (config, source) =>
-            source
-              .candidates(state.input)
-              .take(config.maxCandidates)
-              .zipWithIndex
-              .map { case ((input, repr), i) => (i, input, repr) }
-              .applyOrElse(index + offset, (_: Int) => old)
+        env.autocompletion.map { ac =>
+          ac.source
+            .candidates(state.input)
+            .take(ac.config.maxCandidates)
+            .zipWithIndex
+            .map { case ((input, repr), i) => (i, input, repr) }
+            .applyOrElse(index + offset, (_: Int) => old)
         }
     }
 }

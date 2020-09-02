@@ -4,16 +4,14 @@ import cats.Show
 import cats.effect.Sync
 import cats.kernel.Eq
 import cats.syntax.apply._
-import com.gaborpihaj.console4s.{AutoCompletionConfig, AutoCompletionSource}
+import com.gaborpihaj.console4s.AutoCompletion
 
 trait Console[F[_]] {
   def putStr(text: String): F[Unit]
   def putStrLn(): F[Unit]
   def putStrLn(text: String): F[Unit]
   def readLine(prompt: String): F[String]
-  def readLine[Repr: Show: Eq](prompt: String, autocomplete: AutoCompletionSource[Repr])(
-    implicit cfg: AutoCompletionConfig[Repr]
-  ): F[(String, Option[Repr])]
+  def readLine[Repr: Show: Eq](prompt: String, autocompletion: AutoCompletion[Repr]): F[(String, Option[Repr])]
   def readInt(prompt: String): F[Int]
   def readBool(prompt: String): F[Boolean]
 
@@ -36,10 +34,8 @@ object Console {
       def readLine(prompt: String): F[String] =
         lineReader.readLine(prompt)
 
-      def readLine[Repr: Show: Eq](prompt: String, autocomplete: AutoCompletionSource[Repr])(
-        implicit cfg: AutoCompletionConfig[Repr]
-      ): F[(String, Option[Repr])] =
-        lineReader.readLine(prompt, autocomplete)
+      def readLine[Repr: Show: Eq](prompt: String, autocompletion: AutoCompletion[Repr]): F[(String, Option[Repr])] =
+        lineReader.readLine(prompt, autocompletion)
 
       def readInt(prompt: String): F[Int] =
         lineReader.readInt(prompt)

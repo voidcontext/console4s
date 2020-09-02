@@ -6,7 +6,7 @@ import cats.effect.{ExitCode, IO, IOApp}
 import cats.instances.string._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
-import com.gaborpihaj.console4s.AutoCompletionConfig.Down
+import com.gaborpihaj.console4s.AutoCompletion.Down
 import com.gaborpihaj.console4s._
 import com.gaborpihaj.console4s.iterm.extras.Iterm
 
@@ -17,34 +17,36 @@ object Main extends IOApp {
       val lineReader = LineReader[IO](terminal)
       implicit val console = Console[IO](terminal, lineReader)
 
-      val autocomplete: AutoCompletionSource[String] = str =>
-        List(
-          "foo",
-          "bar",
-          "baz",
-          "foobar",
-          "foobarbaz"
-        ).filter(_.startsWith(str)).map(s => s -> s)
-
-      implicit val acConfig: AutoCompletionConfig[String] = AutoCompletionConfig.defaultAutoCompletionConfig.copy(
-        direction = Down,
-        onResultChange = (maybeString, write) =>
-          write(
-            TerminalControl.savePos() +
-              TerminalControl.up(1) +
-              TerminalControl.back(999) +
-              TerminalControl.clearLine() +
-              s"Currently selected: $maybeString" +
-              TerminalControl.restorePos()
+      val autoCompletion =
+        AutoCompletion[String](
+          source = str =>
+            List(
+              "foo",
+              "bar",
+              "baz",
+              "foobar",
+              "foobarbaz"
+            ).filter(_.startsWith(str)).map(s => s -> s),
+          config = AutoCompletion.defaultAutoCompletionConfig.copy(
+            direction = Down,
+            onResultChange = (maybeString, write) =>
+              write(
+                TerminalControl.savePos() +
+                  TerminalControl.up(1) +
+                  TerminalControl.back(999) +
+                  TerminalControl.clearLine() +
+                  s"Currently selected: $maybeString" +
+                  TerminalControl.restorePos()
+              )
           )
-      )
+        )
 
       for {
         _    <- console.clearScreen()
         _    <- imageExample()
         _    <- console.clearScreen()
         _    <- console.putStrLn(TerminalControl.down())
-        str  <- console.readLine("prompt > ", autocomplete)
+        str  <- console.readLine("prompt > ", autoCompletion)
         _    <- console.clearScreen()
         int  <- console.readInt("What's you favourite number? ")
         _    <- console.clearScreen()

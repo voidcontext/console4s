@@ -7,8 +7,7 @@ import scala.util.Try
 import cats.effect.IO
 import cats.instances.list._
 import cats.instances.string._
-import com.gaborpihaj.console4s.AutoCompletionConfig.Down
-import com.gaborpihaj.console4s.AutoCompletionSource
+import com.gaborpihaj.console4s.AutoCompletion.{AutoCompletionConfig, Down}
 import com.gaborpihaj.console4s.Helpers._
 import com.gaborpihaj.console4s.TerminalHelper.TerminalState
 import org.scalatest.matchers.should.Matchers
@@ -32,7 +31,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
     (terminal, LineReader(terminal), "prompt > ")
   }
 
-  val autocomplete: AutoCompletionSource[String] =
+  val autocompletion = AutoCompletion[String](
     str =>
       List(
         "foo",
@@ -40,7 +39,9 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
         "baz",
         "foobar",
         "foobarbaz"
-      ).filter(_.startsWith(str)).map(s => s -> s)
+      ).filter(_.startsWith(str)).map(s => s -> s),
+    AutoCompletion.defaultAutoCompletionConfig
+  )
 
   implicit val debugger = Debugger.printlnDebugger(false)
 
@@ -180,7 +181,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
         implicit val debugger = Debugger.printlnDebugger(false)
         val (term, lineReader, prompt) = reader(strToChars("foo") ++ List(carriageReturn))
 
-        lineReader.readLine(prompt, autocomplete).unsafeRunSync()
+        lineReader.readLine(prompt, autocompletion).unsafeRunSync()
 
         val output = Try(TerminalHelper.parse(term.output)(debugger)).toEither
 
@@ -204,7 +205,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
       "select the first candidate when the TAB key is pressed" in {
         val (term, lineReader, prompt) = reader(strToChars("f") ++ List(tab, carriageReturn))
 
-        lineReader.readLine(prompt, autocomplete).unsafeRunSync()
+        lineReader.readLine(prompt, autocompletion).unsafeRunSync()
 
         val output = Try(TerminalHelper.parse(term.output)(debugger)).toEither
 
@@ -228,7 +229,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
       "select a candidate with the cursor down key" in {
         val (term, lineReader, prompt) = reader(strToChars("f") ++ cursorDown ++ List(tab, carriageReturn))
 
-        lineReader.readLine(prompt, autocomplete).unsafeRunSync()
+        lineReader.readLine(prompt, autocompletion).unsafeRunSync()
 
         val output = Try(TerminalHelper.parse(term.output)(debugger)).toEither
 
@@ -252,7 +253,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
         val (term, lineReader, prompt) =
           reader(strToChars("f") ++ cursorDown ++ cursorDown ++ cursorUp ++ List(tab, carriageReturn))
 
-        lineReader.readLine(prompt, autocomplete).unsafeRunSync()
+        lineReader.readLine(prompt, autocompletion).unsafeRunSync()
 
         val output = Try(TerminalHelper.parse(term.output)(debugger)).toEither
 
@@ -276,7 +277,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
         val (term, lineReader, prompt) =
           reader(strToChars("f") ++ List(tab) ++ strToChars(" bar") ++ List(carriageReturn))
 
-        lineReader.readLine(prompt, autocomplete).unsafeRunSync()
+        lineReader.readLine(prompt, autocompletion).unsafeRunSync()
 
         val output = Try(TerminalHelper.parse(term.output)(debugger)).toEither
 
@@ -298,7 +299,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
         val (_, lineReader, prompt) =
           reader(strToChars("f") ++ List(tab) ++ cursorDown ++ cursorDown ++ List(carriageReturn))
 
-        val (_, maybeResult) = lineReader.readLine(prompt, autocomplete).unsafeRunSync()
+        val (_, maybeResult) = lineReader.readLine(prompt, autocompletion).unsafeRunSync()
         maybeResult should be(Some("foo"))
       }
 
@@ -306,21 +307,21 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
         val (_, lineReader, prompt) =
           reader(strToChars("f") ++ List(tab) ++ strToChars("b") ++ List(carriageReturn))
 
-        val (_, maybeResult) = lineReader.readLine(prompt, autocomplete).unsafeRunSync()
+        val (_, maybeResult) = lineReader.readLine(prompt, autocompletion).unsafeRunSync()
         maybeResult should be(None)
       }
 
       "display the completions below the prompt in configured" in {
         val (term, lineReader, prompt) = reader(strToChars("foo") ++ List(carriageReturn))
 
-        implicit val acConfig: AutoCompletionConfig[String] =
-          AutoCompletionConfig
+        val acConfig: AutoCompletionConfig[String] =
+          AutoCompletion
             .defaultAutoCompletionConfig[String]
             .copy(
               direction = Down
             )
 
-        lineReader.readLine(prompt, autocomplete).unsafeRunSync()
+        lineReader.readLine(prompt, autocompletion.copy(config = acConfig)).unsafeRunSync()
 
         val output = Try(TerminalHelper.parse(term.output)(debugger)).toEither
 
@@ -343,8 +344,8 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
     }
 
     "autocompletion is provided and it is configured to be strict" should {
-      implicit val acConfig: AutoCompletionConfig[String] =
-        AutoCompletionConfig
+      val acConfig: AutoCompletionConfig[String] =
+        AutoCompletion
           .defaultAutoCompletionConfig[String]
           .copy(
             maxCandidates = 10,
@@ -355,7 +356,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
         val (_, lineReader, prompt) =
           reader(strToChars("f") ++ List(carriageReturn))
 
-        val result = lineReader.readLine(prompt, autocomplete).attempt.unsafeRunSync()
+        val result = lineReader.readLine(prompt, autocompletion.copy(config = acConfig)).attempt.unsafeRunSync()
         result should be(Left(TestTerminal.endOfInputException))
       }
 
@@ -363,7 +364,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
         val (_, lineReader, prompt) =
           reader(strToChars("f") ++ List(tab, carriageReturn))
 
-        val result = lineReader.readLine[String](prompt, autocomplete).unsafeRunSync()
+        val result = lineReader.readLine[String](prompt, autocompletion.copy(config = acConfig)).unsafeRunSync()
         result should be(("foo", Some("foo")))
       }
 
@@ -373,7 +374,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
             strToChars("f") ++ List(carriageReturn) ++ strToChars("oob") ++ cursorDown ++ List(tab, carriageReturn)
           )
 
-        val result = lineReader.readLine(prompt, autocomplete).unsafeRunSync()
+        val result = lineReader.readLine(prompt, autocompletion.copy(config = acConfig)).unsafeRunSync()
         result should be(("foobarbaz", Some("foobarbaz")))
 
         val output = Try(TerminalHelper.parse(term.output)(debugger)).toEither
@@ -396,7 +397,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
 
     "an onResultChange handler is provided" should {
       def config(logs: mutable.ListBuffer[Option[String]]) =
-        AutoCompletionConfig.defaultAutoCompletionConfig.copy(
+        AutoCompletion.defaultAutoCompletionConfig.copy(
           maxCandidates = 10,
           strict = true,
           onResultChange = (maybeResult: Option[String], _) => logs.addOne(maybeResult)
@@ -407,8 +408,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
           reader(strToChars("f") ++ List(tab) ++ cursorDown ++ List(tab, carriageReturn))
 
         val logs = mutable.ListBuffer.empty[Option[String]]
-        implicit val cfg = config(logs)
-        lineReader.readLine(prompt, autocomplete).unsafeRunSync()
+        lineReader.readLine(prompt, autocompletion.copy(config = config(logs))).unsafeRunSync()
 
         logs.toList should be(List(Some("foo"), Some("foobar")))
 
@@ -421,8 +421,7 @@ class LineReaderSpec extends AnyWordSpec with Matchers {
           )
 
         val logs = mutable.ListBuffer.empty[Option[String]]
-        implicit val cfg = config(logs)
-        lineReader.readLine(prompt, autocomplete).unsafeRunSync()
+        lineReader.readLine(prompt, autocompletion.copy(config = config(logs))).unsafeRunSync()
 
         logs.toList should be(List(Some("foo"), None, Some("foobar"), None, Some("foobarbaz")))
       }

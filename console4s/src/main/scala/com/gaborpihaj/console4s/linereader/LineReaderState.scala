@@ -6,7 +6,7 @@ import cats.instances.option._
 import cats.instances.unit._
 import cats.syntax.apply._
 import cats.syntax.flatMap._
-import com.gaborpihaj.console4s.{AutoCompletionConfig, AutoCompletionSource}
+import com.gaborpihaj.console4s.AutoCompletion
 
 private[linereader] case class LineReaderState[Repr](
   keys: Chain[ByteSeq],
@@ -51,7 +51,7 @@ private[linereader] object LineReaderState {
     prompt: String,
     filter: Chain[Int] => Boolean,
     readWhile: Chain[Int] => Boolean,
-    autocomplete: Option[(AutoCompletionConfig[Repr], AutoCompletionSource[Repr])]
+    autocompletion: Option[AutoCompletion[Repr]]
   )
 
   def empty[Repr]: LineReaderState[Repr] = apply(Chain.empty, 0, "", None, None)
@@ -61,9 +61,9 @@ private[linereader] object LineReaderState {
     def prependKeys(keys: ByteSeq): LineReaderState[Repr] = state.copy(keys = Chain.one(keys) ++ state.keys)
     def withInput(input: String, env: Env[Repr], write: String => Unit): LineReaderState[Repr] = {
       (
-        env.autocomplete,
+        env.autocompletion,
         state.completionResult
-      ).mapN { case ((config, _), _) => config.onResultChange(None, write) }
+      ).mapN { case (ac, _) => ac.config.onResultChange(None, write) }
       state.copy(input = input, completionResult = None)
     }
     def selectCompletion(index: Int, input: String, selected: Repr): LineReaderState[Repr] =
